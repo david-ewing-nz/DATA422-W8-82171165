@@ -1,0 +1,214 @@
+
+\documentclass[a4paper,11pt]{extarticle}
+\usepackage{geometry}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{float} 
+
+% Set margins
+\geometry{
+  a4paper,
+  total={170mm,257mm},
+  left=25mm,
+  right=25mm,
+  top=20mm,
+  bottom=25mm,
+}
+
+\title{DATA422-W8-82171165 \\Assignment Submission Report}
+\author{David Ewing (82171165)}
+\date{2024-09-16}
+
+\begin{document}
+
+\maketitle
+
+\section*{Overview}
+This report outlines the deliverables required for the SQL assignment. The assignment involves interacting with a PostgreSQL database, retrieving data, visualising it, performing joins, and analysing query performance. The implementation uses an \texttt{.Renviron} file for secure database credentials and an R script to perform the various operations.
+
+\section*{Deliverable 0: Database Connection}
+The database connection is established using the following environment variables stored in the \texttt{.Renviron} file:
+\begin{verbatim}
+PG_HOST = mathmads.canterbury.ac.nz
+PG_PORT = 8909
+PG_USR = student_data422
+PG_PASS = readonly
+\end{verbatim}
+The R script connects to the PostgreSQL database securely by referencing these environment variables.
+\begin{verbatim}
+    
+> #  environment variables (CONFIRM in environment values)
+> dbname <- Sys.getenv("PG_DBNAME", "Jeff")
+> host <- Sys.getenv("PG_HOST", "mathmads.canterbury.ac.nz")
+> port <- Sys.getenv("PG_PORT", "8909")
+> user <- Sys.getenv("PG_USR", "student_data422")
+> password <- Sys.getenv("PG_PASS")
+> # connection object via environment variables (.Fenviron)
+> con <- dbConnect(
++   Postgres(),
++   dbname = dbname,
++   host = host,
++   port = port,
++   user = user,
++   password = password
++ )
+> # confirm connection status
+> if (!dbIsValid(con)) {
++   stop("FAILED connection to PostgreSQL database.")
++ } else {
++   print("SUCCESSFUL connection to PostgreSQL database.")
++ }
+[1] "SUCCESSFUL connection to PostgreSQL database."
+\end{verbatim}
+\section*{Deliverable 1: Listing Tables}
+The script lists all tables in the connected database using the following code:
+\begin{verbatim}
+tables <- dbListTables(con)
+print(tables)
+\end{verbatim}
+Specific results:
+\begin{verbatim}
+#-------------------------------------------------------------------------------
+> # DELIVERABLE 1: List all tables in the connected database
+> tables <- dbListTables(con)
+> print(tables)
+ [1] "actor"                      "address"                    "category"                   "city"                      
+ [5] "country"                    "customer"                   "film"                       "film_actor"                
+ [9] "film_category"              "inventory"                  "language"                   "payment"                   
+[13] "rental"                     "staff"                      "store"                      "actor_info"                
+[17] "customer_list"              "film_list"                  "nicer_but_slower_film_list" "sales_by_film_category"    
+[21] "sales_by_store"             "staff_list"  
+\end{verbatim}
+
+\vspace{2cm}
+\section*{Deliverable 2: Listing Fields in a Table}
+The script lists all fields from the \texttt{rental} table using the following code:
+\begin{verbatim}
+fields <- dbListFields(con, "rental")
+print(fields)
+\end{verbatim}
+Specific results:
+\begin{verbatim}
+> #-------------------------------------------------------------------------------
+> # DELIVERABLE 2: List all the fields in a table
+> fields <- dbListFields(con, "rental")
+> print(fields)
+[1] "rental_id"    "rental_date"  "inventory_id" "customer_id"  "return_date"  "staff_id"     "last_update"     
+\end{verbatim}
+\newpage 
+\section*{Deliverable 3: Pulling Data}
+The script pulls data from the \texttt{rental} table using the following SQL query:
+\begin{verbatim}
+SELECT rental_id, rental_date, inventory_id, customer_id FROM rental LIMIT 10;
+\end{verbatim}
+This retrieves the first 10 rows of the specified fields.
+
+Specific results:
+\begin{verbatim}
+> #-------------------------------------------------------------------------------
+> # DELIVERABLE 3: Pull some data from the 'rental' table as an example
+> # SELECT:      SQL to 'pull some data' 
+> # rental_id:   Unique ID.
+> # rental_date: The date of  rental occurred.
+> #inventory_id: ID of the rented item.
+> #customer_id:  ID of the customer who rented the item.
+> #LIMIT 10:     clause to limit data
+> query <- "SELECT rental_id, rental_date, inventory_id, customer_id FROM rental LIMIT 10"
+> data <- dbGetQuery(con, query)
+> print(data)
+   rental_id         rental_date inventory_id customer_id
+1          2 2005-05-24 22:54:33         1525         459
+2          3 2005-05-24 23:03:39         1711         408
+3          4 2005-05-24 23:04:41         2452         333
+4          5 2005-05-24 23:05:21         2079         222
+5          6 2005-05-24 23:08:07         2792         549
+6          7 2005-05-24 23:11:53         3995         269
+7          8 2005-05-24 23:31:46         2346         239
+8          9 2005-05-25 00:00:40         2580         126
+9         10 2005-05-25 00:02:21         1824         399
+10        11 2005-05-25 00:09:02         4443         142
+\end{verbatim}
+
+\section*{Deliverable 4: Data Visualisation}
+Using \texttt{ggplot2}, a bar chart is generated to visualise the number of rentals per customer. The following plot is created:
+\begin{verbatim}
+ggplot(data, aes(x = factor(customer_id))) +
+  geom_bar() +
+  xlab("Customer ID") +
+  ylab("Number of Rentals") +
+  ggtitle("Number of Rentals per Customer") +
+  theme_minimal()
+\end{verbatim}
+Specific Results:
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\linewidth]{ggpolot.png}
+    \caption{ggplot}
+    \label{fig:ggplot}
+\end{figure}
+\section*{Deliverable 5: Join Operation}
+A SQL \texttt{JOIN} (default) is performed between the \texttt{rental} and \texttt{customer} tables, retrieving the first and last names of customers who rented items. The following SQL query is used:
+\begin{verbatim}
+SELECT rental.rental_id, rental.rental_date, customer.first_name, customer.last_name
+FROM rental
+JOIN customer ON rental.customer_id = customer.customer_id
+LIMIT 10;
+\end{verbatim}
+Specific results:
+\begin{verbatim}
+> #-------------------------------------------------------------------------------
+> # DELIVERABLE 5: Perform a JOIN between 'rental' and 'customer' tables to get customer names
+> # INNER JOIN (SQL default):
+> # JOIN customer ON rental.customer_id = customer.customer_id 
+> join_query <- "
++   SELECT rental.rental_id, rental.rental_date, customer.first_name, customer.last_name
++   FROM rental
++   JOIN customer ON rental.customer_id = customer.customer_id
++   LIMIT 10
++ "
+> joined_data <- dbGetQuery(con, join_query)
+> print(joined_data)
+   rental_id         rental_date first_name   last_name
+1          2 2005-05-24 22:54:33      Tommy     Collazo
+2          3 2005-05-24 23:03:39     Manuel     Murrell
+3          4 2005-05-24 23:04:41     Andrew       Purdy
+4          5 2005-05-24 23:05:21    Delores      Hansen
+5          6 2005-05-24 23:08:07     Nelson Christenson
+6          7 2005-05-24 23:11:53  Cassandra     Walters
+7          8 2005-05-24 23:31:46     Minnie      Romero
+8          9 2005-05-25 00:00:40      Ellen     Simpson
+9         10 2005-05-25 00:02:21      Danny        Isom
+10        11 2005-05-25 00:09:02      April       Burns
+\end{verbatim}
+
+\newpage
+\section*{Deliverable 6: Execution Plan Analysis}
+An \texttt{EXPLAIN} statement is executed to analyse the performance of the \texttt{JOIN} query. The query plan is printed as follows:
+\begin{verbatim}
+EXPLAIN SELECT rental.rental_id, rental.rental_date, customer.first_name, customer.last_name
+FROM rental
+JOIN customer ON rental.customer_id = customer.customer_id;
+\end{verbatim}
+Specific Results:
+\begin{verbatim}
+> #-------------------------------------------------------------------------------
+> # Investigate the execution plan for the JOIN query
+> # results are in dataframe 
+> explain_query <- "
++   EXPLAIN SELECT rental.rental_id, rental.rental_date, customer.first_name, customer.last_name
++   FROM rental
++   JOIN customer ON rental.customer_id = customer.customer_id
++ "
+> execution_plan <- dbGetQuery(con, explain_query)
+> print(execution_plan)
+                                                              QUERY PLAN
+1                    Hash Join  (cost=22.48..375.33 rows=16044 width=25)
+2                 Hash Cond: (rental.customer_id = customer.customer_id)
+3        ->  Seq Scan on rental  (cost=0.00..310.44 rows=16044 width=14)
+4                        ->  Hash  (cost=14.99..14.99 rows=599 width=17)
+5         ->  Seq Scan on customer  (cost=0.00..14.99 rows=599 width=17)
+\end{verbatim}
+\section*{Conclusion}
+The \texttt{.Renviron} file and \texttt{00\_initialisation.R} script together fulfil all the deliverables for this assignment, including secure database access, querying data, visualising results, and analysing query performance.
+
+\end{document}
