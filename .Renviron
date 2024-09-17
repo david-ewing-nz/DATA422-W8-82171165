@@ -1,0 +1,5 @@
+PG_DBNAME = Jeff
+PG_HOST = mathmads.canterbury.ac.nz
+PG_PORT = 8909
+PG_USR = student_data422
+PG_PASS = readonly
